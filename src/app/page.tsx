@@ -1,10 +1,12 @@
 'use client'
+
 import { Card, InputFile, Spinner, Table } from "@/modules/sharedModule/components"
 import { ListItem } from "@/modules/sharedModule/interfaces";
-import { DateService, WorksheetService } from "@/modules/sharedModule/services";
+import { DateService, NumberService, WorksheetService } from "@/modules/sharedModule/services";
 import { useEffect, useState } from "react";
 
-// TODO: Exportar lista completa de Fundos em CSV somente os ETFs
+// TODO: Exportar lista completa de Fundos em CSV somente os ETFs, tem no site da B3
+// o valor é o preço médio vezes a quantidade de ações
 interface WorksheetItem {
   'Data do Negócio': string;
   'Tipo de Movimentação': string;
@@ -50,41 +52,19 @@ export default function Home() {
         transactionType: w["Tipo de Movimentação"]
       }))
 
-      const grouped = list.reduce<{ [k: string]: GroupingItem }>((acc, item) => {
-        if (acc[item.tradingCode]) {
-          const totalQuantity = acc[item.tradingCode].totalQuantity + item.quantity
-          const totalCost = acc[item.tradingCode].totalCost + item.totalCost
-          const avarageCost = totalCost / totalQuantity
-          acc[item.tradingCode] = {
-            ...acc[item.tradingCode],
-            totalQuantity: totalQuantity,
-            averageCost: avarageCost,
-            totalCost: totalCost,
-            discriminating: '',
-          }
-        } else {
-          const avarageCost = item.totalCost / item.quantity
-          acc[item.tradingCode] = {
-            code: item.tradingCode,
-            totalQuantity: item.quantity,
-            averageCost: avarageCost,
-            totalCost: item.totalCost,
-            discriminating: '',
-            income: 0,
-          }
-        }
-        return acc;
-      }, {})
+      const listWithoutEtfsAndFiis = list.filter(g => !g.tradingCode.includes('11'))
+      const groupings = createGroupingsFrom(listWithoutEtfsAndFiis);
 
-      const groupings = Object.entries(grouped).map(g => g[1])
       setListGroupings(groupings)
-      setList(list)
+      setList(listWithoutEtfsAndFiis)
     }
+
   }, [file])
 
   useEffect(() => {
     setIsLoading(false);
   }, [list])
+
 
   function onChangeFile(filelist: FileList | null) {
     setIsLoading(true)
@@ -101,23 +81,63 @@ export default function Home() {
         <Table list={list} isLoading={isLoading} />
       </Card>
 
-      <div className="grid grid-cols-4 gap-4 mt-6">
+      <div className="grid xl:grid-cols-4 md:grid-cols-3 sm:grid-cols-2 gap-4 mt-6">
         {listGroupings.map(g => (
-          <ul className="bg-white shadow-sm p-4 rounded-md" key={g.code}>
-            <li className="mb-4">
-              No site do IRPF: <br />
-              Grupo 3 - Participações Societárias<br />
-              Código 1 - Ações (inclusive as listadas em bolsa)
-            </li>
-            <li>Código do negócio: {g.code}</li>
-            <li>Quantidade: {g.totalQuantity}</li>
-            <li>Preço médio: {g.averageCost}</li>
-            <li>Rendimentos: {g.income}</li>
-            <li>Discriminante: {g.discriminating}</li>
-          </ul>
+          <Card key={g.code}>
+            <ul>
+              <li className="mb-4">
+                No site do IRPF: <br />
+                Menu Bens e Dívidas <br />
+                Grupo 3 - Participações Societárias<br />
+                Código 1 - Ações (inclusive as listadas em bolsa)
+              </li>
+              <li>Código do negócio: {g.code}</li>
+              <li>Quantidade: {NumberService.formatToCurrency(g.totalQuantity)}</li>
+              <li>Preço médio: {NumberService.formatToCurrency(g.averageCost)}</li>
+              <li>Rendimentos: {g.income}</li>
+              <li>Discriminante: {g.discriminating}</li>
+            </ul>
+          </Card>
         ))}
       </div>
 
     </main>
   )
+}
+
+
+function createGroupingsFrom(listWithoutEtfsAndFiis: ListItem[]) {
+  const grouped = listWithoutEtfsAndFiis.reduce<{ [k: string]: GroupingItem; }>((acc, item) => {
+    if (acc[item.tradingCode]) {
+      const totalQuantity = acc[item.tradingCode].totalQuantity + item.quantity;
+      const totalCost = acc[item.tradingCode].totalCost + item.totalCost;
+      const avarageCost = totalCost / totalQuantity;
+      acc[item.tradingCode] = {
+        ...acc[item.tradingCode],
+        totalQuantity: totalQuantity,
+        averageCost: avarageCost,
+        totalCost: totalCost,
+        discriminating: createDiscriminating(totalQuantity, item, avarageCost),
+      };
+    } else {
+      const avarageCost = item.totalCost / item.quantity;
+      acc[item.tradingCode] = {
+        code: item.tradingCode,
+        totalQuantity: item.quantity,
+        averageCost: avarageCost,
+        totalCost: item.totalCost,
+        discriminating: createDiscriminating(item.quantity, item, avarageCost),
+        income: 0,
+      };
+    }
+
+    return acc;
+  }, {});
+
+  const groupings = Object.entries(grouped).map(g => g[1]);
+  return groupings;
+}
+
+function createDiscriminating(totalQuantity: number, item: ListItem, avarageCost: number): string {
+  return `${totalQuantity} acoes da ${item.tradingCode} pelo valor medio de R$ ${NumberService.formatToCurrency(avarageCost)} por meio da ${item.institution}`;
 }

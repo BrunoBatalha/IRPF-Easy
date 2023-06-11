@@ -1,6 +1,6 @@
 import { Spinner } from ".."
 import { ListItem } from "../../interfaces"
-import { DateService } from "../../services"
+import { DateService, NumberService } from "../../services"
 
 export interface Props {
     list: ListItem[];
@@ -39,7 +39,7 @@ export default function Table({ list, isLoading }: Props) {
                         <td className="px-4 flex-1">{DateService.toFormatDDMMYYYY(item.date)}</td>
                         <td className="px-4 flex-1">{item.tradingCode}</td>
                         <td className="px-4 flex-1">{item.quantity}</td>
-                        <td className="px-4 flex-1">{item.totalCost}</td>
+                        <td className="px-4 flex-1">{NumberService.formatToCurrency(item.totalCost)}</td>
                     </tr>
                 ))}
             </tbody>
