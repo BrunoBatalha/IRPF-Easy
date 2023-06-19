@@ -1,5 +1,6 @@
 'use client'
-import { Card, IconFile } from "..";
+
+import { IconFile } from "..";
 
 interface Props {
     onChange: (fileList: FileList | null) => void;
@@ -10,26 +11,24 @@ export default function InputFile({ onChange, value }: Props) {
     const hasFile = value && value.length;
 
     return (
-        <Card className="items-center !p-1">
-            <>
-                <span className="mx-4">
-                    <IconFile />
-                </span>
-                <span className={`${hasFile ? '' : 'text-gray-400'}`}>{
-                    hasFile ? value.item(0)!.name : 'Selecione um arquivo'
-                }</span>
+        <>
+            <span className="mx-4">
+                <IconFile />
+            </span>
+            <span className={`${hasFile ? '' : 'text-gray-400'}`}>{
+                hasFile ? value.item(0)!.name : 'Selecione um arquivo'
+            }</span>
 
-                <LabelButtonImport />
+            <LabelButtonImport />
 
-                <input
-                    type="file"
-                    name="file-input"
-                    id="file-input"
-                    className="hidden"
-                    onChange={e => onChange(e.target.files)}
-                />
-            </>
-        </Card>
+            <input
+                type="file"
+                name="file-input"
+                id="file-input"
+                className="hidden"
+                onChange={e => onChange(e.target.files)}
+            />
+        </>
     )
 }
 

@@ -1,48 +1,61 @@
 import { Spinner } from ".."
-import { ListItem } from "../../interfaces"
-import { DateService, NumberService } from "../../services"
+import { ReactKey } from "../../interfaces";
 
-export interface Props {
-    list: ListItem[];
+type PropertiesItem<TItem> = { [k in keyof TItem]: (() => JSX.Element) | React.ReactNode }
+type List<TItem> = ReactKey & PropertiesItem<TItem>
+
+export interface Props<TItem> {
+    list: Array<List<TItem>>;
+    headers: Array<{ value: React.ReactNode, accessor: keyof TItem }>;
     isLoading: boolean;
 }
 
-export default function Table({ list, isLoading }: Props) {
+export default function Table<TListItem>({ list, isLoading, headers }: Props<TListItem>) {
+
+    // TODO: refatorar para não usar any
+    function valueToCell(value: any) {
+        const canBeFunctionThatReturnJsxElement = typeof value === "function"
+        return canBeFunctionThatReturnJsxElement ? value() : value
+    }
 
     return (
-        <table className="bg-white flex-1">
-            <thead className="text-gray-600 tracking-wider border-solid border-orange-300 border-b-2 sticky top-0 bg-white">
-                <tr className="px-8 py-4 flex">
-                    <th className="flex items-start px-4 font-medium flex-1">Data do negócio</th>
-                    <th className="flex items-start px-4 font-medium flex-1">Código</th>
-                    <th className="flex items-start px-4 font-medium flex-1">Quantidade</th>
-                    <th className="flex items-start px-4 font-medium flex-1">Preço total</th>
-                </tr>
-            </thead>
-            <tbody className="block max-h-96 overflow-auto">
-                {isLoading && (
-                    <tr className="mx-auto block">
-                        <td align="center" colSpan={4} className="block my-4"><Spinner /></td>
+        <div className="relative max-h-96 overflow-auto w-full">
+            <table className="bg-white w-full">
+                <thead>
+                    <tr>
+                        {headers.map((h, i) => (
+                            <th key={i}
+                                align="left"
+                                className="
+                                    sticky 
+                                    px-4        
+                                    py-6                       
+                                    top-0 
+                                  bg-white
+                                  text-gray-600 
+                                    tracking-wider                                  
+                                    font-medium
+                                    cs-shadow-bottom-orange">
+                                {h.value}
+                            </th>
+                        ))}
                     </tr>
-                )}
+                </thead>
 
-                {!isLoading && list.map((item: ListItem) => (
-                    <tr className="
-                        px-8 
-                        py-4
-                        text-gray-600 
-                        border-solid 
-                        border-gray-100 
-                        border-b-2 
-                        flex"
-                        key={item.id}>
-                        <td className="px-4 flex-1">{DateService.toFormatDDMMYYYY(item.date)}</td>
-                        <td className="px-4 flex-1">{item.tradingCode}</td>
-                        <td className="px-4 flex-1">{item.quantity}</td>
-                        <td className="px-4 flex-1">{NumberService.formatToCurrency(item.totalCost)}</td>
-                    </tr>
-                ))}
-            </tbody>
-        </table>
+                <tbody>
+                    {isLoading && (
+                        <tr>
+                            <td align="center" colSpan={headers.length} className="py-8"><Spinner /></td>
+                        </tr>
+                    )}
+
+                    {!isLoading && list.map((item) => (
+                        <tr key={item.reactKey} className="text-gray-600 border-solid border-gray-100 border-b-2">
+                            {headers.map((h, i) => <td key={i} className="px-4 py-4" align="left">{valueToCell(item[h.accessor])}</td>)}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
     )
 }

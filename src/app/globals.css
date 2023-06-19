@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* prefix "cs" = "custom" */
+
+@layer utilities {
+  .cs-shadow-bottom-orange {
+    box-shadow: inset 0 -2px 0 theme('colors.orange.300');
+  }
+}
+
 :root {
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 214, 219, 220;
