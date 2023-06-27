@@ -25,6 +25,8 @@ export default function Table<TListItem>({ list, isLoading, headers }: Props<TLi
                     <tr>
                         {headers.map((h, i) => (
                             <th key={i}
+                                scope="col"
+                                role="columnheader"
                                 align="left"
                                 className="
                                     sticky 
@@ -35,7 +37,7 @@ export default function Table<TListItem>({ list, isLoading, headers }: Props<TLi
                                   text-gray-600 
                                     tracking-wider                                  
                                     font-medium
-                                    cs-shadow-bottom-orange">
+                                    cs-inset-shadow-bottom-orange-500">
                                 {h.value}
                             </th>
                         ))}

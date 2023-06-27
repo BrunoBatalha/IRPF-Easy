@@ -1,6 +1,6 @@
 'use client'
 
-import { Card, InputFile, Table } from "@/modules/sharedModule/components"
+import { Card, InputFile, Table, Tabs } from "@/modules/sharedModule/components"
 import { ReactKey } from "@/modules/sharedModule/interfaces";
 import { DateService, NumberService, WorksheetService } from "@/modules/sharedModule/services";
 import { useEffect, useState } from "react";
@@ -97,22 +97,37 @@ export default function Home() {
       <section className="flex justify-end mb-4">
         <Card className="items-center !p-1">
           <InputFile onChange={onChangeFile} value={file} />
-        </Card >
+        </Card>
       </section>
+      <Tabs initialTab={0} tabs={['Todas', 'Ações']}>
+        <Card>
+          <Table<Stock>
+            isLoading={isLoading}
+            list={listAllStocks.map(l => l.mapperToTable())}
+            headers={[
+              { value: 'Data do negócio', accessor: 'date' },
+              { value: 'Código', accessor: 'tradingCode' },
+              { value: 'Quantidade', accessor: 'quantity' },
+              { value: 'Preço total (R$)', accessor: 'totalCost' },
+              { value: 'Instituição', accessor: 'institution' }
+            ]}
+          />
+        </Card>
+        <Card>
+          <Table<GroupingStock>
+            isLoading={isLoading}
+            list={listStockGroupings.map(l => l.mapperToTable())}
+            headers={[
+              { value: 'Código', accessor: 'code' },
+              { value: 'Custo médio (R$)', accessor: 'totalAverageCost' },
+              { value: 'Rendimentos (R$)', accessor: 'income' },
+              { value: 'Quantidade', accessor: 'totalQuantity' },
+              { value: 'Discriminante', accessor: 'discriminating' },
+            ]}
+          />
+        </Card>
+      </Tabs>
 
-      <Card>
-        <Table<Stock>
-          isLoading={isLoading}
-          list={listAllStocks.map(l => l.mapperToTable())}
-          headers={[
-            { value: 'Data do negócio', accessor: 'date' },
-            { value: 'Código', accessor: 'tradingCode' },
-            { value: 'Quantidade', accessor: 'quantity' },
-            { value: 'Preço total (R$)', accessor: 'totalCost' },
-            { value: 'Instituição', accessor: 'institution' }
-          ]}
-        />
-      </Card>
 
       <div className="grid xl:grid-cols-4 md:grid-cols-3 sm:grid-cols-2 gap-4 mt-12">
         <ul>
@@ -127,19 +142,7 @@ export default function Home() {
         </ul>
       </div>
 
-      <Card>
-        <Table<GroupingStock>
-          isLoading={isLoading}
-          list={listStockGroupings.map(l => l.mapperToTable())}
-          headers={[
-            { value: 'Código', accessor: 'code' },
-            { value: 'Custo médio (R$)', accessor: 'totalAverageCost' },
-            { value: 'Rendimentos (R$)', accessor: 'income' },
-            { value: 'Quantidade', accessor: 'totalQuantity' },
-            { value: 'Discriminante', accessor: 'discriminating' },
-          ]}
-        />
-      </Card>
+
     </main>
   )
 }

@@ -15,7 +15,7 @@ export default function InputFile({ onChange, value }: Props) {
             <span className="mx-4">
                 <IconFile />
             </span>
-            <span className={`${hasFile ? '' : 'text-gray-400'}`}>{
+            <span className={`${hasFile ? '' : 'text-gray-500'}`}>{
                 hasFile ? value.item(0)!.name : 'Selecione um arquivo'
             }</span>
 
@@ -39,8 +39,8 @@ function LabelButtonImport() {
             className="
                 block
                 rounded-md
-                bg-orange-400
-                hover:bg-orange-500
+                bg-orange-700
+                hover:bg-orange-800
                 hover:cursor-pointer
                 transition
                 duration-200
