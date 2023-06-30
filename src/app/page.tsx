@@ -12,13 +12,21 @@ import { useEffect, useState } from "react";
 // TODO: mostrar as intruções detalhadas de onde vai preencher no imposto de renda
 // TODO: fazer barra de progresso do arquivo sendo carregado
 // TODO: olhar pelo lighthouse a perfomance e melhorar com useMemo useCallback e ver se tem ganho
-interface WorksheetItem {
+interface WorksheetStocksAndFiisItem {
   'Data do Negócio': string;
   'Tipo de Movimentação': string;
   'Instituição': string;
   'Código de Negociação': string;
   'Quantidade': string;
   'Valor': string;
+}
+
+interface WorksheetIncome {
+  'Produto': string;
+  'Pagamento': string;
+  'Tipo de Evento': string;
+  'Quantidade': string;
+  'Valor líquido': string;
 }
 
 interface GroupingStock {
@@ -40,17 +48,29 @@ interface Stock {
   totalCost: number;
 }
 
+interface Income {
+  id: number;
+  date: Date;
+  eventType: 'Dividendo' | 'Rendimento' | 'Juros Sobre Capital Próprio';
+  product: string;
+  quantity: number;
+  value: number;
+}
+
 type ValueOverride = React.ReactNode | (() => JSX.Element)
 type PropertiesToString<T> = Record<keyof T, ValueOverride> & ReactKey
 type TableListAllStocks = PropertiesToString<Stock>
 type TableListStockGrouping = PropertiesToString<GroupingStock>
+type TableListIncomes = PropertiesToString<Income>
 
 type ResultFactory<TValue, TValueTable> = { value: TValue, mapperToTable: () => TValueTable }
 type ResultFactoryStock = ResultFactory<Stock, TableListAllStocks>
 type ResultFactoryGroupingStock = ResultFactory<GroupingStock, TableListStockGrouping>;
+type ResultFactoryIncome = ResultFactory<Income, TableListIncomes>
 
 export default function Home() {
-  const [file, setFile] = useState<FileList | null>(null)
+  const [fileStocksAndFiis, setFileStocksAndFiis] = useState<FileList | null>(null)
+  const [fileIncome, setFileIncome] = useState<FileList | null>(null)
   const [listAllStocks, setListAllStocks] = useState<ResultFactoryStock[]>([])
   const [listStockGroupings, setListStockGroupings] = useState<ResultFactoryGroupingStock[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false)
@@ -59,12 +79,12 @@ export default function Home() {
     handleOnChangeFile();
 
     async function handleOnChangeFile() {
-      if (!file || file.length === 0) {
+      if (!fileStocksAndFiis || fileStocksAndFiis.length === 0) {
         setIsLoading(false);
         return
       }
 
-      const worksheetJson = await WorksheetService.worksheetsToJson<WorksheetItem[]>(file.item(0)!)
+      const worksheetJson = await WorksheetService.worksheetsToJson<WorksheetStocksAndFiisItem[]>(fileStocksAndFiis.item(0)!)
 
       const list = worksheetJson.map<ResultFactoryStock>((w, index) => createStock({
         id: index,
@@ -82,21 +102,59 @@ export default function Home() {
       setListStockGroupings(groupings)
       setListAllStocks(listWithoutEtfsAndFiis)
     }
+  }, [fileStocksAndFiis])
 
-  }, [file])
+  useEffect(() => {
+    handleOnChangeFile();
+
+    async function handleOnChangeFile() {
+      if (!fileIncome || fileIncome.length === 0) {
+        setIsLoading(false);
+        return
+      }
+
+      const worksheetJson = await WorksheetService.worksheetsToJson<WorksheetIncome[]>(fileIncome.item(0)!)
+      const list = worksheetJson.map<ResultFactoryIncome>((w, index) => createIncome({
+        id: index,
+        product: w['Produto'],
+        eventType: w['Tipo de Evento'] as Income['eventType'],
+        date: DateService.DDMMYYYYToDate(w["Pagamento"]),
+        quantity: Number(w['Quantidade']),
+        value: Number(w["Valor líquido"]),
+      }))
+
+      const listWithoutEtfsAndFiis = list.filter(g => !g.value.product.includes('FII'))
+
+      // const groupings = createGroupingsFrom(listWithoutEtfsAndFiis);
+      // TODO depoois de agrupar, devo  olhar para cada item e adicionar na listAllStocks com o valor do rendimento, devo criar colunas na tabela pra juros sobre capital proprio e dividendos totais
+
+      // setListStockGroupings(groupings)
+      // setListAllStocks(listWithoutEtfsAndFiis)
+    }
+
+  }, [fileIncome])
 
   useEffect(() => setIsLoading(false), [listAllStocks])
 
-  function onChangeFile(filelist: FileList | null) {
+  function onChangeFileStockAndFiis(filelist: FileList | null) {
     setIsLoading(true)
-    setFile(filelist)
+    setFileStocksAndFiis(filelist)
+  }
+
+  function onChangeFileIncome(filelist: FileList | null) {
+    setIsLoading(true)
+    setFileIncome(filelist)
   }
 
   return (
     <main className="flex min-h-screen flex-col p-24">
-      <section className="flex justify-end mb-4">
+      <section className="flex justify-end items-end mb-4 gap-1">
         <Card className="items-center !p-1">
-          <InputFile onChange={onChangeFile} value={file} />
+          <InputFile onChange={onChangeFileStockAndFiis} value={fileStocksAndFiis} labelId="fileStock" />
+        </Card>
+
+        <Card className="items-center !p-1">
+          <InputFile onChange={onChangeFileIncome} value={fileIncome} labelId="fileIncome" />
         </Card>
       </section>
       <Tabs initialTab={0} tabs={['Todas', 'Ações']}>
@@ -198,6 +256,22 @@ function createStock(stock: Stock): ResultFactoryStock {
     })
   }
 }
+
+function createIncome(income: Income): ResultFactoryIncome {
+  return {
+    value: income,
+    mapperToTable: () => ({
+      id: income.id,
+      date: DateService.toFormatDDMMYYYY(income.date),
+      eventType: income.eventType,
+      reactKey: income.id,
+      product: income.product,
+      quantity: income.quantity,
+      value: income.value
+    })
+  }
+}
+
 
 function createGroupingStock(groupingStock: GroupingStock): ResultFactoryGroupingStock {
   return {

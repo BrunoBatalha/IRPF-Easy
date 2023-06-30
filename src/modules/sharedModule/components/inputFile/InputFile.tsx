@@ -5,9 +5,10 @@ import { IconFile } from "..";
 interface Props {
     onChange: (fileList: FileList | null) => void;
     value: FileList | null;
+    labelId: string;
 }
 
-export default function InputFile({ onChange, value }: Props) {
+export default function InputFile({ onChange, value, labelId }: Props) {
     const hasFile = value && value.length;
 
     return (
@@ -19,12 +20,12 @@ export default function InputFile({ onChange, value }: Props) {
                 hasFile ? value.item(0)!.name : 'Selecione um arquivo'
             }</span>
 
-            <LabelButtonImport />
+            <LabelButtonImport labelId={labelId} />
 
             <input
                 type="file"
-                name="file-input"
-                id="file-input"
+                name={labelId}
+                id={labelId}
                 className="hidden"
                 onChange={e => onChange(e.target.files)}
             />
@@ -33,9 +34,9 @@ export default function InputFile({ onChange, value }: Props) {
 }
 
 
-function LabelButtonImport() {
+function LabelButtonImport({ labelId }: { labelId: string }) {
     return (
-        <label htmlFor="file-input"
+        <label htmlFor={labelId}
             className="
                 block
                 rounded-md
