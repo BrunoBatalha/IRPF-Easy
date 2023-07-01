@@ -52,8 +52,8 @@ export default function Table<TListItem>({ list, isLoading, headers }: Props<TLi
                     )}
 
                     {!isLoading && list.map((item) => (
-                        <tr key={item.reactKey} className="text-gray-600 border-solid border-gray-100 border-b-2">
-                            {headers.map((h, i) => <td key={i} className="px-4 py-4" align="left">{valueToCell(item[h.accessor])}</td>)}
+                        <tr key={item.reactKey} className="text-gray-600 even:bg-orange-50">
+                            {headers.map((h, i) => <td key={i} className="px-4 py-5" align="left">{valueToCell(item[h.accessor])}</td>)}
                         </tr>
                     ))}
                 </tbody>

@@ -1,6 +1,6 @@
 'use client'
 
-import { Card, InputFile, Table, Tabs } from "@/modules/sharedModule/components"
+import { Card, IconInfo, IconSearch, InputFile, Table, Tabs } from "@/modules/sharedModule/components"
 import { ReactKey } from "@/modules/sharedModule/interfaces";
 import { DateService, NumberService, WorksheetService } from "@/modules/sharedModule/services";
 import { useEffect, useState } from "react";
@@ -36,6 +36,8 @@ interface GroupingStock {
   totalCost: number;
   discriminating: string;
   income: number;
+  jcp: number;
+  cnpj: string;
 }
 
 interface Stock {
@@ -67,6 +69,7 @@ type ResultFactory<TValue, TValueTable> = { value: TValue, mapperToTable: () => 
 type ResultFactoryStock = ResultFactory<Stock, TableListAllStocks>
 type ResultFactoryGroupingStock = ResultFactory<GroupingStock, TableListStockGrouping>;
 type ResultFactoryIncome = ResultFactory<Income, TableListIncomes>
+type ResultFactoryGroupingIncome = Pick<Income, 'eventType' | 'product' | 'value'>
 
 export default function Home() {
   const [fileStocksAndFiis, setFileStocksAndFiis] = useState<FileList | null>(null)
@@ -76,17 +79,22 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState<boolean>(false)
 
   useEffect(() => {
-    handleOnChangeFile();
+    if (fileStocksAndFiis?.length && fileIncome?.length) {
+      handleOnChangeFile();
+    }
 
     async function handleOnChangeFile() {
-      if (!fileStocksAndFiis || fileStocksAndFiis.length === 0) {
+      setIsLoading(true)
+
+      if (!fileStocksAndFiis || fileStocksAndFiis.length === 0 || !fileIncome || fileIncome.length === 0) {
         setIsLoading(false);
         return
       }
 
-      const worksheetJson = await WorksheetService.worksheetsToJson<WorksheetStocksAndFiisItem[]>(fileStocksAndFiis.item(0)!)
+      const worksheetJsonStocks = await WorksheetService.worksheetsToJson<WorksheetStocksAndFiisItem[]>(fileStocksAndFiis.item(0)!)
+      const worksheetJsonIncomes = await WorksheetService.worksheetsToJson<WorksheetIncome[]>(fileIncome.item(0)!)
 
-      const list = worksheetJson.map<ResultFactoryStock>((w, index) => createStock({
+      const listStocks = worksheetJsonStocks.map<ResultFactoryStock>((w, index) => createStock({
         id: index,
         date: DateService.DDMMYYYYToDate(w["Data do Negócio"]),
         institution: w['Instituição'],
@@ -96,25 +104,7 @@ export default function Home() {
         transactionType: w["Tipo de Movimentação"]
       }))
 
-      const listWithoutEtfsAndFiis = list.filter(g => !g.value.tradingCode.includes('11'))
-      const groupings = createGroupingsFrom(listWithoutEtfsAndFiis);
-
-      setListStockGroupings(groupings)
-      setListAllStocks(listWithoutEtfsAndFiis)
-    }
-  }, [fileStocksAndFiis])
-
-  useEffect(() => {
-    handleOnChangeFile();
-
-    async function handleOnChangeFile() {
-      if (!fileIncome || fileIncome.length === 0) {
-        setIsLoading(false);
-        return
-      }
-
-      const worksheetJson = await WorksheetService.worksheetsToJson<WorksheetIncome[]>(fileIncome.item(0)!)
-      const list = worksheetJson.map<ResultFactoryIncome>((w, index) => createIncome({
+      const listIncomes = worksheetJsonIncomes.map<ResultFactoryIncome>((w, index) => createIncome({
         id: index,
         product: w['Produto'],
         eventType: w['Tipo de Evento'] as Income['eventType'],
@@ -123,26 +113,25 @@ export default function Home() {
         value: Number(w["Valor líquido"]),
       }))
 
-      const listWithoutEtfsAndFiis = list.filter(g => !g.value.product.includes('FII'))
+      const listStocksWithoutEtfsAndFiis = listStocks.filter(g => !g.value.tradingCode.includes('11'))
+      const listIncomesWithoutEtfsAndFiis = listIncomes.filter(g => !g.value.product.includes('FII'))
 
-      // const groupings = createGroupingsFrom(listWithoutEtfsAndFiis);
-      // TODO depoois de agrupar, devo  olhar para cada item e adicionar na listAllStocks com o valor do rendimento, devo criar colunas na tabela pra juros sobre capital proprio e dividendos totais
+      const groupingsIncomes = createGroupingsIncomes(listIncomesWithoutEtfsAndFiis)
+      const groupings = createGroupingsFrom(listStocksWithoutEtfsAndFiis, groupingsIncomes);
 
-      // setListStockGroupings(groupings)
-      // setListAllStocks(listWithoutEtfsAndFiis)
+      setListStockGroupings(groupings)
+      setListAllStocks(listStocksWithoutEtfsAndFiis)
     }
+  }, [fileStocksAndFiis, fileIncome])
 
-  }, [fileIncome])
 
   useEffect(() => setIsLoading(false), [listAllStocks])
 
   function onChangeFileStockAndFiis(filelist: FileList | null) {
-    setIsLoading(true)
     setFileStocksAndFiis(filelist)
   }
 
   function onChangeFileIncome(filelist: FileList | null) {
-    setIsLoading(true)
     setFileIncome(filelist)
   }
 
@@ -150,14 +139,16 @@ export default function Home() {
     <main className="flex min-h-screen flex-col p-24">
       <section className="flex justify-end items-end mb-4 gap-1">
         <Card className="items-center !p-1">
+          <div>Planilha de negociações</div>
           <InputFile onChange={onChangeFileStockAndFiis} value={fileStocksAndFiis} labelId="fileStock" />
         </Card>
 
         <Card className="items-center !p-1">
+          <div>Planilha de proventos</div>
           <InputFile onChange={onChangeFileIncome} value={fileIncome} labelId="fileIncome" />
         </Card>
       </section>
-      <Tabs initialTab={0} tabs={['Todas', 'Ações']}>
+      <Tabs initialTab={0} tabs={['Todas', 'Ações', 'Como declarar?']}>
         <Card>
           <Table<Stock>
             isLoading={isLoading}
@@ -171,41 +162,51 @@ export default function Home() {
             ]}
           />
         </Card>
-        <Card>
-          <Table<GroupingStock>
-            isLoading={isLoading}
-            list={listStockGroupings.map(l => l.mapperToTable())}
-            headers={[
-              { value: 'Código', accessor: 'code' },
-              { value: 'Custo médio (R$)', accessor: 'totalAverageCost' },
-              { value: 'Rendimentos (R$)', accessor: 'income' },
-              { value: 'Quantidade', accessor: 'totalQuantity' },
-              { value: 'Discriminante', accessor: 'discriminating' },
-            ]}
-          />
-        </Card>
+        <section>
+          <Card>
+            <Table<GroupingStock>
+              isLoading={isLoading}
+              list={listStockGroupings.map(l => l.mapperToTable())}
+              headers={[
+                { value: 'Código', accessor: 'code' },
+                { value: 'CNPJ', accessor: 'cnpj' },
+                { value: 'Custo médio (R$)', accessor: 'totalAverageCost' },
+                { value: 'Rendimentos (R$)', accessor: 'income' },
+                { value: 'Juros sobre capital próprio (R$)', accessor: 'jcp' },
+                { value: 'Quantidade', accessor: 'totalQuantity' },
+                { value: 'Discriminante', accessor: 'discriminating' },
+              ]}
+            />
+          </Card>
+        </section>
+        <section>
+          <Card className="my-8 flex flex-col">
+            <div className="flex items-center mb-3">
+              <span className="inline-flex text-yellow-500"><IconInfo /></span>
+              <span className="pl-4">Como declarar?</span>
+            </div>
+            <div className="pl-10 leading-8">
+              <ol className="mb-4">
+                <li>1º Acesse o menu lateral “Bens e Dívidas”</li>
+                <li>2º Selecione as opções  “Grupo 3 - Participações Societárias” e “Código 1 - Ações (inclusive as listadas em bolsa)”</li>
+              </ol>
+
+              <span>Levando em conta a tabela a baixo, preencha:</span>
+              <ol>
+                <li>1º Em “código de negociação” coloque o Código;</li>
+                <li>2º Em “CNPJ” coloque o CNPJ;</li>
+                <li>3º Em “Discriminação” coloque o “Discriminante”;</li>
+                <li>4º Em “Valor em 31/12/(ultimo ano) R$” coloque o Custo médio total;</li>
+              </ol>
+            </div>
+          </Card>
+        </section>
       </Tabs>
-
-
-      <div className="grid xl:grid-cols-4 md:grid-cols-3 sm:grid-cols-2 gap-4 mt-12">
-        <ul>
-          <li className="mb-4">
-            Na declação de imposto de renda acesse o menu lateral: <br />
-            | Bens e Dívidas <br />
-            <br />
-            Selecione as opções:<br />
-            | Grupo 3 - Participações Societárias<br />
-            | Código 1 - Ações (inclusive as listadas em bolsa)
-          </li>
-        </ul>
-      </div>
-
-
     </main>
   )
 }
 
-function createGroupingsFrom(listWithoutEtfsAndFiis: ResultFactoryStock[]) {
+function createGroupingsFrom(listWithoutEtfsAndFiis: ResultFactoryStock[], listIncomeWithoutFiis: ResultFactoryGroupingIncome[]) {
   const grouped = listWithoutEtfsAndFiis.reduce<{ [k: string]: ResultFactoryGroupingStock; }>((acc, { value: item }) => {
     if (acc[item.tradingCode]) {
       const totalQuantity = acc[item.tradingCode].value.totalQuantity + item.quantity;
@@ -220,21 +221,85 @@ function createGroupingsFrom(listWithoutEtfsAndFiis: ResultFactoryStock[]) {
       });
     } else {
       const avarageCost = item.totalCost / item.quantity;
+      const income = getIncome(listIncomeWithoutFiis, item)
+      const jcp = getJcp(listIncomeWithoutFiis, item)
+
       acc[item.tradingCode] = createGroupingStock({
         code: item.tradingCode,
         totalQuantity: item.quantity,
         totalAverageCost: avarageCost,
         totalCost: item.totalCost,
         discriminating: createDiscriminating(item.quantity, item, avarageCost),
-        income: 0,
+        income: income ?? 0,
+        jcp: jcp ?? 0,
+        cnpj: `https://www.google.com/search?q=cnpj+da+${item.tradingCode}`
       });
     }
 
     return acc;
   }, {});
 
-  const groupings = Object.entries(grouped).map(g => g[1]);
-  return groupings;
+  return Object.entries(grouped).map(g => g[1]);
+}
+
+function createGroupingsIncomes(listIncomeWithoutFiis: ResultFactoryIncome[]) {
+  const grouped = listIncomeWithoutFiis.reduce<{ [k: string]: ResultFactoryGroupingIncome; }>((acc, { value: item }) => {
+    if (acc[item.product]) {
+      const sumValueTotal = acc[item.product].value + item.quantity;
+      acc[item.product] = { ...item, value: sumValueTotal }
+    } else {
+      acc[item.product] = {
+        ...item,
+        product: item.product,
+        value: item.value,
+        eventType: item.eventType,
+      }
+    }
+
+    return acc;
+  }, {});
+
+  return Object.entries(grouped).map(g => g[1]);
+}
+
+function getIncome(listIncomeWithoutFiis: ResultFactoryGroupingIncome[], item: Stock) {
+  const { isStockFractional, tradingCodeLowerCase } = getInfoStock(item);
+
+  if (isStockFractional) {
+    return listIncomeWithoutFiis.find(i =>
+      (i.eventType === 'Dividendo' || i.eventType === 'Rendimento') &&
+      i.product.toLowerCase().includes(tradingCodeLowerCase.substring(0, tradingCodeLowerCase.length - 1))
+    )?.value;
+  }
+
+  return listIncomeWithoutFiis.find(i =>
+    (i.eventType === 'Dividendo' || i.eventType === 'Rendimento') &&
+    i.product.toLowerCase().includes(tradingCodeLowerCase)
+  )?.value;
+}
+
+function getJcp(listIncomeWithoutFiis: ResultFactoryGroupingIncome[], item: Stock) {
+  const { isStockFractional, tradingCodeLowerCase } = getInfoStock(item);
+
+  if (isStockFractional) {
+    return listIncomeWithoutFiis.find(i =>
+      (i.eventType === 'Juros Sobre Capital Próprio') &&
+      i.product.toLowerCase().includes(tradingCodeLowerCase.substring(0, tradingCodeLowerCase.length - 1))
+    )?.value;
+  }
+
+  return listIncomeWithoutFiis.find(i =>
+    (i.eventType === 'Juros Sobre Capital Próprio') &&
+    i.product.toLowerCase().includes(tradingCodeLowerCase)
+  )?.value;
+}
+
+function getInfoStock(item: Stock) {
+  const tradingCodeLowerCase = item.tradingCode.toLowerCase();
+  const lastCharacter = tradingCodeLowerCase[tradingCodeLowerCase.length - 1];
+  const penultimateCharacter = tradingCodeLowerCase[tradingCodeLowerCase.length - 2];
+  const isStockFractional = lastCharacter.toUpperCase() === 'F' && !isNaN(Number(penultimateCharacter));
+  return { isStockFractional, tradingCodeLowerCase };
 }
 
 function createDiscriminating(totalQuantity: number, item: Stock, avarageCost: number): string {
@@ -252,7 +317,7 @@ function createStock(stock: Stock): ResultFactoryStock {
       quantity: stock.quantity,
       totalCost: NumberService.formatToCurrency(stock.totalCost),
       tradingCode: stock.tradingCode,
-      transactionType: stock.transactionType
+      transactionType: stock.transactionType,
     })
   }
 }
@@ -272,7 +337,6 @@ function createIncome(income: Income): ResultFactoryIncome {
   }
 }
 
-
 function createGroupingStock(groupingStock: GroupingStock): ResultFactoryGroupingStock {
   return {
     value: groupingStock,
@@ -283,7 +347,9 @@ function createGroupingStock(groupingStock: GroupingStock): ResultFactoryGroupin
       income: NumberService.formatToCurrency(groupingStock.income),
       reactKey: groupingStock.code,
       totalCost: NumberService.formatToCurrency(groupingStock.totalCost),
-      totalQuantity: groupingStock.totalQuantity
+      totalQuantity: groupingStock.totalQuantity,
+      jcp: NumberService.formatToCurrency(groupingStock.jcp),
+      cnpj: <a href={groupingStock.cnpj} target="_blank" className="inline-flex text-blue-600 hover:text-blue-900" title="Procurar CNPJ"><IconSearch /></a>
     })
   }
 }
