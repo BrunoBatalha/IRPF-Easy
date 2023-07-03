@@ -66,7 +66,11 @@ export default function Page() {
         Como conseguir as planilhas?
         <ol>
           <li>1º Acesse a <a href="https://www.investidor.b3.com.br/" target="_blank" className="inline-flex text-blue-600 hover:text-blue-900 hover:underline">Área do investidor na B3</a></li>
-          <li>2º </li>
+          <li>2º No menu esquerdo selecione a opção &quot;Extratos&quot; e vá na aba &quot;movimentaçao&quot;</li>
+          <li>3º Clique em filtrar e selecione o intervalo do ano desejado</li>
+          <li>4º Exporte como XLSX</li>
+          <li>5º No menu esquerdo selecione a opção &quot;Relátorios&quot;, escolha aba &quot;Relatório consolidado&quot; e filtre de forma anual o ano desejado</li>
+          <li>6º Baixe o relatório com &quot;excel&quot;</li>
         </ol>
       </div>
 
