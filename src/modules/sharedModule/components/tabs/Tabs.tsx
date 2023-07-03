@@ -10,15 +10,18 @@ export default function Tabs({ children, initialTab, tabs }: Props) {
     const [currentTab, setCurrentTab] = useState(initialTab)
 
     return (
-        <div>
+        <>
             <div className="border-gray-300 border-solid border-b-2 mb-10">
                 {tabs.map((t, i) => (
                     <button key={t}
+                        data-isTabSelected={i === currentTab}
                         className={`
                             px-20 py-2 
                             hover:bg-gray-50 
                             transition 
-                            ${i === currentTab ? 'cs-shadow-bottom-orange-500 text-gray-800' : 'text-gray-500'}   
+                            data-[isTabSelected=true]:cs-shadow-bottom-orange-500 
+                            data-[isTabSelected=true]:text-gray-800
+                            data-[isTabSelected=false]:text-gray-500
                         `}
                         onClick={() => setCurrentTab(i)}>
                         {t}
@@ -29,6 +32,6 @@ export default function Tabs({ children, initialTab, tabs }: Props) {
             <section>
                 {children.find((_, i) => i === currentTab)}
             </section>
-        </div>
+        </>
     )
 }

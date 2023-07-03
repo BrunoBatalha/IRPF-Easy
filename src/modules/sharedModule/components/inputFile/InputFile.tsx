@@ -12,11 +12,11 @@ export default function InputFile({ onChange, value, labelId }: Props) {
     const hasFile = value && value.length;
 
     return (
-        <>
+        <div className="flex items-center">
             <span className="mx-4">
                 <IconFile />
             </span>
-            <span className={`${hasFile ? '' : 'text-gray-500'}`}>{
+            <span className={`${hasFile ? '' : 'text-gray-500'} max-w-[18ch] text-ellipsis whitespace-nowrap overflow-hidden`}>{
                 hasFile ? value.item(0)!.name : 'Selecione um arquivo'
             }</span>
 
@@ -29,7 +29,7 @@ export default function InputFile({ onChange, value, labelId }: Props) {
                 className="hidden"
                 onChange={e => onChange(e.target.files)}
             />
-        </>
+        </div>
     )
 }
 

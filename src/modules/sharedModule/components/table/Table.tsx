@@ -8,9 +8,10 @@ export interface Props<TItem> {
     list: Array<List<TItem>>;
     headers: Array<{ value: React.ReactNode, accessor: keyof TItem }>;
     isLoading: boolean;
+    classNameContainer?: string
 }
 
-export default function Table<TListItem>({ list, isLoading, headers }: Props<TListItem>) {
+export default function Table<TListItem>({ list, isLoading, headers, classNameContainer }: Props<TListItem>) {
 
     // TODO: refatorar para não usar any
     function valueToCell(value: any) {
@@ -19,7 +20,7 @@ export default function Table<TListItem>({ list, isLoading, headers }: Props<TLi
     }
 
     return (
-        <div className="relative max-h-96 overflow-auto w-full">
+        <div className={`relative overflow-auto w-full ${classNameContainer}`}>
             <table className="bg-white w-full">
                 <thead>
                     <tr>
