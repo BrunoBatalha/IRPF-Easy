@@ -120,12 +120,14 @@ export default function Home() {
                             <li>2º Selecione as opções  “Grupo 3 - Participações Societárias” e “Código 1 - Ações (inclusive as listadas em bolsa)”</li>
                         </ol>
 
-                        <span>Levando em conta a tabela a baixo, preencha:</span>
+                        <span>Levando em conta a tabela do menu {'"ações"'}, preencha:</span>
                         <ol>
                             <li>1º Em “código de negociação” coloque o Código;</li>
                             <li>2º Em “CNPJ” coloque o CNPJ;</li>
                             <li>3º Em “Discriminação” coloque o “Discriminante”;</li>
                             <li>4º Em “Valor em 31/12/(ultimo ano) R$” coloque o Custo médio total;</li>
+                            <li>5º Clique em {'"INCLUIR REND. ISENTO"'} coloque o valor de Rendimentos;</li>
+                            <li>6º Clique em {'"INCLUIR REND. EXCLUSIVO"'} coloque o valor de Juros sobre capital próprio;</li>
                         </ol>
                     </div>
                 </Card>
