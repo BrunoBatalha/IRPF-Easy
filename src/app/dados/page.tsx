@@ -4,7 +4,9 @@ import { Card, IconInfo, IconSearch, Table, Tabs } from "@/modules/sharedModule/
 import { ReactKey } from "@/modules/sharedModule/interfaces";
 import { DateService, NumberService } from "@/modules/sharedModule/services";
 import { useEffect, useState } from "react";
+import { WorksheetIncome, WorksheetStocksAndFiisItem } from "../page";
 
+// INFO: o preco medio é a soma de todos dos valores pagos nas ações divida pela quantidade de ações
 // INFO: o valor é o preço médio vezes a quantidade de ações
 // TODO: Exportar lista completa de Fundos em CSV somente os ETFs, tem no site da B3
 // TODO: checar se a ação existe
@@ -12,22 +14,7 @@ import { useEffect, useState } from "react";
 // TODO: mostrar as intruções detalhadas de onde vai preencher no imposto de renda
 // TODO: fazer barra de progresso do arquivo sendo carregado
 // TODO: olhar pelo lighthouse a perfomance e melhorar com useMemo useCallback e ver se tem ganho
-interface WorksheetStocksAndFiisItem {
-    'Data do Negócio': string;
-    'Tipo de Movimentação': string;
-    'Instituição': string;
-    'Código de Negociação': string;
-    'Quantidade': string;
-    'Valor': string;
-}
 
-interface WorksheetIncome {
-    'Produto': string;
-    'Pagamento': string;
-    'Tipo de Evento': string;
-    'Quantidade': string;
-    'Valor líquido': string;
-}
 
 interface StorageWorksheet {
     worksheetJsonStocks: WorksheetStocksAndFiisItem[],
@@ -57,10 +44,8 @@ interface Stock {
 
 interface Income {
     id: number;
-    date: Date;
-    eventType: 'Dividendo' | 'Rendimento' | 'Juros Sobre Capital Próprio';
+    eventType: WorksheetIncome['Tipo de Evento'];
     product: string;
-    quantity: number;
     value: number;
 }
 
@@ -90,31 +75,31 @@ export default function Home() {
         setIsLoading(true)
 
         const { worksheetJsonIncomes, worksheetJsonStocks } = JSON.parse(data) as StorageWorksheet
+        const worksheetStocksAsc = worksheetJsonStocks.reverse()
+        const transfers = worksheetStocksAsc.filter(w => w['Movimentação'] === 'Transferência - Liquidação')
 
-        const listStocks = worksheetJsonStocks.map<ResultFactoryStock>((w, index) => createStock({
+        const listStocks = transfers.map<ResultFactoryStock>((w, index) => createStock({
             id: index,
-            date: DateService.DDMMYYYYToDate(w["Data do Negócio"]),
+            date: DateService.DDMMYYYYToDate(w["Data"]),
             institution: w['Instituição'],
             quantity: Number(w.Quantidade),
-            totalCost: Number(w.Valor),
-            tradingCode: w["Código de Negociação"],
-            transactionType: w["Tipo de Movimentação"]
+            totalCost: Number(w['Valor da Operação']),
+            tradingCode: w["Produto"],
+            transactionType: w["Movimentação"]
         }))
 
         const listIncomes = worksheetJsonIncomes.map<ResultFactoryIncome>((w, index) => createIncome({
             id: index,
             product: w['Produto'],
             eventType: w['Tipo de Evento'] as Income['eventType'],
-            date: DateService.DDMMYYYYToDate(w["Pagamento"]),
-            quantity: Number(w['Quantidade']),
             value: Number(w["Valor líquido"]),
         }))
 
         const listStocksWithoutEtfsAndFiis = listStocks.filter(g => !g.value.tradingCode.includes('11'))
-        const listIncomesWithoutEtfsAndFiis = listIncomes.filter(g => !g.value.product.includes('FII'))
+        // const listIncomesWithoutEtfsAndFiis = listIncomes.filter(g => !g.value.product.includes('FII'))
 
-        const groupingsIncomes = createGroupingsIncomes(listIncomesWithoutEtfsAndFiis)
-        const groupings = createGroupingsFrom(listStocksWithoutEtfsAndFiis, groupingsIncomes);
+        // const groupingsIncomes = createGroupingsIncomes(listIncomesWithoutEtfsAndFiis)
+        const groupings = createGroupingsFrom(listStocksWithoutEtfsAndFiis, listIncomes);
 
         setListStockGroupings(groupings)
         setListAllStocks(listStocksWithoutEtfsAndFiis)
@@ -181,7 +166,7 @@ export default function Home() {
     )
 }
 
-function createGroupingsFrom(listWithoutEtfsAndFiis: ResultFactoryStock[], listIncomeWithoutFiis: ResultFactoryGroupingIncome[]) {
+function createGroupingsFrom(listWithoutEtfsAndFiis: ResultFactoryStock[], listIncomeWithoutFiis: ResultFactoryIncome[]) {
     const grouped = listWithoutEtfsAndFiis.reduce<{ [k: string]: ResultFactoryGroupingStock; }>((acc, { value: item }) => {
         if (acc[item.tradingCode]) {
             const totalQuantity = acc[item.tradingCode].value.totalQuantity + item.quantity;
@@ -217,60 +202,41 @@ function createGroupingsFrom(listWithoutEtfsAndFiis: ResultFactoryStock[], listI
     return Object.entries(grouped).map(g => g[1]);
 }
 
-function createGroupingsIncomes(listIncomeWithoutFiis: ResultFactoryIncome[]) {
-    const grouped = listIncomeWithoutFiis.reduce<{ [k: string]: ResultFactoryGroupingIncome; }>((acc, { value: item }) => {
-        if (acc[item.product]) {
-            const sumValueTotal = acc[item.product].value + item.quantity;
-            acc[item.product] = { ...item, value: sumValueTotal }
-        } else {
-            acc[item.product] = {
-                ...item,
-                product: item.product,
-                value: item.value,
-                eventType: item.eventType,
-            }
-        }
-
-        return acc;
-    }, {});
-
-    return Object.entries(grouped).map(g => g[1]);
-}
-
-function getIncome(listIncomeWithoutFiis: ResultFactoryGroupingIncome[], item: Stock) {
+function getIncome(listIncomeWithoutFiis: ResultFactoryIncome[], item: Stock) {
     const { isStockFractional, tradingCodeLowerCase } = getInfoStock(item);
 
     if (isStockFractional) {
         return listIncomeWithoutFiis.find(i =>
-            (i.eventType === 'Dividendo' || i.eventType === 'Rendimento') &&
-            i.product.toLowerCase().includes(tradingCodeLowerCase.substring(0, tradingCodeLowerCase.length - 1))
-        )?.value;
+            (i.value.eventType === 'Dividendo' || i.value.eventType === 'Rendimento') &&
+            i.value.product.toLowerCase().includes(tradingCodeLowerCase.substring(0, tradingCodeLowerCase.length - 1))
+        )?.value.value;
     }
 
     return listIncomeWithoutFiis.find(i =>
-        (i.eventType === 'Dividendo' || i.eventType === 'Rendimento') &&
-        i.product.toLowerCase().includes(tradingCodeLowerCase)
-    )?.value;
+        (i.value.eventType === 'Dividendo' || i.value.eventType === 'Rendimento') &&
+        i.value.product.toLowerCase().includes(tradingCodeLowerCase)
+    )?.value.value;
 }
 
-function getJcp(listIncomeWithoutFiis: ResultFactoryGroupingIncome[], item: Stock) {
+function getJcp(listIncomeWithoutFiis: ResultFactoryIncome[], item: Stock) {
     const { isStockFractional, tradingCodeLowerCase } = getInfoStock(item);
 
     if (isStockFractional) {
         return listIncomeWithoutFiis.find(i =>
-            (i.eventType === 'Juros Sobre Capital Próprio') &&
-            i.product.toLowerCase().includes(tradingCodeLowerCase.substring(0, tradingCodeLowerCase.length - 1))
-        )?.value;
+            (i.value.eventType === 'Juros Sobre Capital Próprio') &&
+            i.value.product.toLowerCase().includes(tradingCodeLowerCase.substring(0, tradingCodeLowerCase.length - 1))
+        )?.value.value;
     }
 
     return listIncomeWithoutFiis.find(i =>
-        (i.eventType === 'Juros Sobre Capital Próprio') &&
-        i.product.toLowerCase().includes(tradingCodeLowerCase)
-    )?.value;
+        (i.value.eventType === 'Juros Sobre Capital Próprio') &&
+        i.value.product.toLowerCase().includes(tradingCodeLowerCase)
+    )?.value.value;
 }
 
 function getInfoStock(item: Stock) {
-    const tradingCodeLowerCase = item.tradingCode.toLowerCase();
+    const tradingCode = item.tradingCode.split(' - ')[0]
+    const tradingCodeLowerCase = tradingCode.toLowerCase();
     const lastCharacter = tradingCodeLowerCase[tradingCodeLowerCase.length - 1];
     const penultimateCharacter = tradingCodeLowerCase[tradingCodeLowerCase.length - 2];
     const isStockFractional = lastCharacter.toUpperCase() === 'F' && !isNaN(Number(penultimateCharacter));
@@ -302,11 +268,9 @@ function createIncome(income: Income): ResultFactoryIncome {
         value: income,
         mapperToTable: () => ({
             id: income.id,
-            date: DateService.toFormatDDMMYYYY(income.date),
             eventType: income.eventType,
             reactKey: income.id,
             product: income.product,
-            quantity: income.quantity,
             value: income.value
         })
     }

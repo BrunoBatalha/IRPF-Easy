@@ -12,20 +12,20 @@ import { useEffect, useState } from "react";
 // TODO: mostrar as intruções detalhadas de onde vai preencher no imposto de renda
 // TODO: fazer barra de progresso do arquivo sendo carregado
 // TODO: olhar pelo lighthouse a perfomance e melhorar com useMemo useCallback e ver se tem ganho
-interface WorksheetStocksAndFiisItem {
-  'Data do Negócio': string;
-  'Tipo de Movimentação': string;
+export interface WorksheetStocksAndFiisItem {
+  'Entrada/Saída': 'Credito' | 'Debito';
+  'Data': string;
+  'Movimentação': 'Transferência - Liquidação' | 'Rendimento' | 'Compra' | 'Dividendo' | 'Atualização' | 'Juros Sobre Capital Próprio' | 'COMPRA / VENDA';
+  'Produto': string;
   'Instituição': string;
-  'Código de Negociação': string;
   'Quantidade': string;
-  'Valor': string;
+  'Preço unitário': string;
+  'Valor da Operação': string
 }
 
-interface WorksheetIncome {
+export interface WorksheetIncome {
   'Produto': string;
-  'Pagamento': string;
-  'Tipo de Evento': string;
-  'Quantidade': string;
+  'Tipo de Evento': 'Dividendo' | 'Juros Sobre Capital Próprio' | 'Rendimento';
   'Valor líquido': string;
 }
 
@@ -44,8 +44,9 @@ export default function Page() {
         return
       }
 
+      const receivedProventsSheetIndex = 5
       const worksheetJsonStocks = await WorksheetService.worksheetsToJson<WorksheetStocksAndFiisItem[]>(fileStocksAndFiis.item(0)!)
-      const worksheetJsonIncomes = await WorksheetService.worksheetsToJson<WorksheetIncome[]>(fileIncome.item(0)!)
+      const worksheetJsonIncomes = await WorksheetService.worksheetsToJson<WorksheetIncome[]>(fileIncome.item(0)!, receivedProventsSheetIndex)
       window.sessionStorage.setItem('worksheets', JSON.stringify({ worksheetJsonStocks, worksheetJsonIncomes }))
       router.push('/dados')
     }
@@ -62,7 +63,7 @@ export default function Page() {
 
   return (
     <main className="min-h-screen p-24">
-      <div>
+      <Card>
         Como conseguir as planilhas?
         <ol>
           <li>1º Acesse a <a href="https://www.investidor.b3.com.br/" target="_blank" className="inline-flex text-blue-600 hover:text-blue-900 hover:underline">Área do investidor na B3</a></li>
@@ -72,7 +73,7 @@ export default function Page() {
           <li>5º No menu esquerdo selecione a opção &quot;Relátorios&quot;, escolha aba &quot;Relatório consolidado&quot; e filtre de forma anual o ano desejado</li>
           <li>6º Baixe o relatório com &quot;excel&quot;</li>
         </ol>
-      </div>
+      </Card>
 
       <div className="flex place-items-center gap-10 flex-col">
         <section>
