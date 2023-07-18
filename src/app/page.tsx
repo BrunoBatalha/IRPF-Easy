@@ -1,17 +1,10 @@
 'use client'
 
-import { Card, InputFile } from "@/modules/sharedModule/components"
+import { Card, InputFile, Spinner } from "@/modules/sharedModule/components"
 import { WorksheetService } from "@/modules/sharedModule/services";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-// TODO: usar a planilha da b3 com as movimentações e a planilha do menu esquerdo de relatorios anual
-// INFO: o valor é o preço médio vezes a quantidade de ações
-// TODO: Exportar lista completa de Fundos em CSV somente os ETFs, tem no site da B3
-// TODO: checar se a ação existe
-// TODO: permitir enviar planilha de rendimentos e exibir no card
-// TODO: mostrar as intruções detalhadas de onde vai preencher no imposto de renda
-// TODO: fazer barra de progresso do arquivo sendo carregado
-// TODO: olhar pelo lighthouse a perfomance e melhorar com useMemo useCallback e ver se tem ganho
+
 export interface WorksheetStocksAndFiisItem {
   'Entrada/Saída': 'Credito' | 'Debito';
   'Data': string;
@@ -29,9 +22,18 @@ export interface WorksheetIncome {
   'Valor líquido': string;
 }
 
+// export interface WorksheetIncome {
+//   'Produto': string;
+//   'Tipo de Evento': 'Dividendo' | 'Juros Sobre Capital Próprio' | 'Rendimento';
+//   'Valor líquido': string;
+//   'CNPJ da Empresa': string;
+//   'Quantidade': string;
+// }
+
 export default function Page() {
   const [fileStocksAndFiis, setFileStocksAndFiis] = useState<FileList | null>(null)
   const [fileIncome, setFileIncome] = useState<FileList | null>(null)
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter()
 
   useEffect(() => {
@@ -44,9 +46,13 @@ export default function Page() {
         return
       }
 
-      const receivedProventsSheetIndex = 5
+      setIsLoading(true);
+
+      const indexReceivedProventsSheet = 5
+      // const indexStocksSheet = 0
       const worksheetJsonStocks = await WorksheetService.worksheetsToJson<WorksheetStocksAndFiisItem[]>(fileStocksAndFiis.item(0)!)
-      const worksheetJsonIncomes = await WorksheetService.worksheetsToJson<WorksheetIncome[]>(fileIncome.item(0)!, receivedProventsSheetIndex)
+      const worksheetJsonIncomes = await WorksheetService.worksheetsToJson<WorksheetIncome[]>(fileIncome.item(0)!, indexReceivedProventsSheet)
+      // const worksheetJsonStocksAnnual = await WorksheetService.worksheetsToJson<WorksheetIncome[]>(fileIncome.item(0)!, indexStocksSheet)
       window.sessionStorage.setItem('worksheets', JSON.stringify({ worksheetJsonStocks, worksheetJsonIncomes }))
       router.push('/dados')
     }
@@ -61,10 +67,18 @@ export default function Page() {
     setFileIncome(filelist)
   }
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex justify-center items-center flex-col">
+        <Spinner />
+      </div>
+    )
+  }
+
   return (
     <main className="min-h-screen p-24">
       <Card className="flex-col gap-3 mb-8 text-gray-800">
-        <h1 className="text-lg font-medium">Instruções</h1>        
+        <h1 className="text-lg font-medium">Instruções</h1>
         <ol>
           <li className="mb-1">1º Acesse a <a href="https://www.investidor.b3.com.br/" target="_blank" className="inline-flex text-blue-600 hover:text-blue-900 hover:underline">Área do investidor na B3</a></li>
           <li className="mb-1">2º No menu esquerdo selecione a opção &quot;Extratos&quot; e vá na aba &quot;movimentação&quot;;</li>

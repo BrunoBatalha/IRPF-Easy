@@ -1,20 +1,11 @@
 'use client'
 
-import { Card, IconInfo, IconSearch, Table, Tabs } from "@/modules/sharedModule/components"
+import { Card, IconChevronLeft, IconInfo, IconSearch, Table, Tabs } from "@/modules/sharedModule/components"
 import { ReactKey } from "@/modules/sharedModule/interfaces";
 import { DateService, NumberService } from "@/modules/sharedModule/services";
 import { useEffect, useState } from "react";
 import { WorksheetIncome, WorksheetStocksAndFiisItem } from "../page";
-
-// INFO: o preco medio é a soma de todos dos valores pagos nas ações divida pela quantidade de ações
-// INFO: o valor é o preço médio vezes a quantidade de ações
-// TODO: Exportar lista completa de Fundos em CSV somente os ETFs, tem no site da B3
-// TODO: checar se a ação existe
-// TODO: permitir enviar planilha de rendimentos e exibir no card
-// TODO: mostrar as intruções detalhadas de onde vai preencher no imposto de renda
-// TODO: fazer barra de progresso do arquivo sendo carregado
-// TODO: olhar pelo lighthouse a perfomance e melhorar com useMemo useCallback e ver se tem ganho
-
+import Link from "next/link";
 
 interface StorageWorksheet {
     worksheetJsonStocks: WorksheetStocksAndFiisItem[],
@@ -35,6 +26,7 @@ interface GroupingStock {
 interface Stock {
     id: number;
     date: Date;
+    creditOrDebit: WorksheetStocksAndFiisItem['Entrada/Saída'];
     transactionType: string;
     institution: string;
     tradingCode: string;
@@ -80,6 +72,7 @@ export default function Home() {
 
         const listStocks = transfers.map<ResultFactoryStock>((w, index) => createStock({
             id: index,
+            creditOrDebit: w["Entrada/Saída"],
             date: DateService.DDMMYYYYToDate(w["Data"]),
             institution: w['Instituição'],
             quantity: Number(w.Quantidade),
@@ -87,6 +80,7 @@ export default function Home() {
             tradingCode: w["Produto"],
             transactionType: w["Movimentação"]
         }))
+        console.log(listStocks)
 
         const listIncomes = worksheetJsonIncomes.map<ResultFactoryIncome>((w, index) => createIncome({
             id: index,
@@ -96,9 +90,6 @@ export default function Home() {
         }))
 
         const listStocksWithoutEtfsAndFiis = listStocks.filter(g => !g.value.tradingCode.includes('11'))
-        // const listIncomesWithoutEtfsAndFiis = listIncomes.filter(g => !g.value.product.includes('FII'))
-
-        // const groupingsIncomes = createGroupingsIncomes(listIncomesWithoutEtfsAndFiis)
         const groupings = createGroupingsFrom(listStocksWithoutEtfsAndFiis, listIncomes);
 
         setListStockGroupings(groupings)
@@ -107,7 +98,12 @@ export default function Home() {
     }, [])
 
     return (
-        <main className="flex min-h-screen max-h-screen flex-col pt-24 px-24">
+        <main className="flex min-h-screen max-h-screen flex-col pt-12 px-24">
+            <Link className="flex gap-4 pb-12 text-orange-500 hover:text-orange-700 transition duration-200" href='/'>
+                <IconChevronLeft />
+                Voltar
+            </Link>
+
             <Tabs initialTab={0} tabs={['Como declarar?', 'Todas', 'Ações']}>
                 <Card className="my-8 flex flex-col">
                     <div className="flex items-center mb-3">
@@ -185,13 +181,17 @@ function createGroupingsFrom(listWithoutEtfsAndFiis: ResultFactoryStock[], listI
             const avarageCost = item.totalCost / item.quantity;
             const income = getIncome(listIncomeWithoutFiis, item)
             const jcp = getJcp(listIncomeWithoutFiis, item)
+            let quantity = item.quantity
+            if (item.creditOrDebit === 'Debito') {
+                quantity = quantity * (-1);
+            }
 
             acc[item.tradingCode] = createGroupingStock({
                 code: item.tradingCode,
-                totalQuantity: item.quantity,
+                totalQuantity: quantity,
                 totalAverageCost: avarageCost,
                 totalCost: item.totalCost,
-                discriminating: createDiscriminating(item.quantity, item, avarageCost),
+                discriminating: createDiscriminating(quantity, item, avarageCost),
                 income: income ?? 0,
                 jcp: jcp ?? 0,
                 cnpj: `https://www.google.com/search?q=cnpj+da+${item.tradingCode}`
@@ -283,7 +283,7 @@ function createGroupingStock(groupingStock: GroupingStock): ResultFactoryGroupin
         value: groupingStock,
         mapperToTable: () => ({
             totalAverageCost: NumberService.formatToCurrency(groupingStock.totalAverageCost),
-            code: groupingStock.code,
+            code: groupingStock.code.split('-')[0],
             discriminating: groupingStock.discriminating,
             income: NumberService.formatToCurrency(groupingStock.income),
             reactKey: groupingStock.code,
